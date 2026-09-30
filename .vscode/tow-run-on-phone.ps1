@@ -1,0 +1,34 @@
+﻿# Собрать, поставить и запустить Tidy or Whiny на подключённом телефоне.
+#
+#   .\tow-run-on-phone.ps1                 # первый физический телефон (эмуляторы пропускаются)
+#   .\tow-run-on-phone.ps1 -Serial XXXX    # конкретное устройство из `adb devices`
+param(
+    [string]$Serial = ""
+)
+
+$ErrorActionPreference = 'Stop'
+
+. "$PSScriptRoot\tow-sdk.ps1"
+
+Set-Location (Join-Path $PSScriptRoot "..")
+
+& $adb start-server | Out-Null
+if (-not $Serial) {
+    $devices = & $adb devices | Select-Object -Skip 1 | Where-Object { $_ -match "\tdevice$" } | ForEach-Object { ($_ -split "\t")[0] }
+    $Serial = $devices | Where-Object { $_ -notlike "emulator-*" } | Select-Object -First 1
+    if (-not $Serial) { $Serial = $devices | Select-Object -First 1 }
+    if (-not $Serial) {
+        Write-Host "Нет подключённых устройств (adb devices пуст). Включите отладку по USB." -ForegroundColor Red
+        exit 1
+    }
+}
+Write-Host "Устройство: $Serial"
+$env:ANDROID_SERIAL = $Serial
+
+& ".\gradlew.bat" --no-daemon installDebug
+if ($LASTEXITCODE -ne 0) {
+    exit $LASTEXITCODE
+}
+
+& $adb -s $Serial shell am start -n com.tidyorwhiny.app/.MainActivity
+exit $LASTEXITCODE

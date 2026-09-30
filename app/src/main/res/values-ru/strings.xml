@@ -1,0 +1,80 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="slogan_1_lead">Сфоткай</string>
+    <string name="slogan_1_mark">бардак.</string>
+    <string name="slogan_2_lead">Запиши</string>
+    <string name="slogan_2_mark">нытьё.</string>
+    <string name="slogan_3">ИИ решит.</string>
+    <string name="home_subtitle">Выбери проверку. ИИ-инспектор вынесет честный вердикт.</string>
+    <string name="mascot_hello">Я — Инспектор.\nЧто проверяем?</string>
+
+    <string name="mess_check">Проверка бардака</string>
+    <string name="mess_check_desc">Сфоткай комнату. Порядок или полный хаос?</string>
+    <string name="chip_photo">ФОТО</string>
+    <string name="whine_check">Проверка нытья</string>
+    <string name="whine_check_desc">Запиши, что говорит ребёнок. Ноет, клянчит или молодец?</string>
+    <string name="chip_audio">АУДИО</string>
+
+    <string name="back">Назад</string>
+    <string name="close">Закрыть</string>
+    <string name="allow">Разрешить</string>
+    <string name="try_again">Ещё раз</string>
+    <string name="send_to_ai">Отправить ИИ</string>
+    <string name="home">На главную</string>
+
+    <string name="camera_hint">Помести всю комнату в кадр</string>
+    <string name="take_photo">Сфотографировать</string>
+    <string name="pick_gallery">Выбрать из галереи</string>
+    <string name="switch_camera">Сменить камеру</string>
+    <string name="flash">Вспышка</string>
+    <string name="camera_permission_title">Инспектору нужна камера</string>
+    <string name="camera_permission_body">Разреши доступ к камере, чтобы сфоткать комнату. Или выбери фото из галереи.</string>
+    <string name="camera_failed">Камера не запустилась. Попробуй выбрать фото из галереи.</string>
+    <string name="preview_title">Хороший кадр?</string>
+    <string name="preview_body">Отправь его ИИ-инспектору, он скажет честно.</string>
+    <string name="retake">Переснять</string>
+
+    <string name="inspecting_title">Изучаю бардак…</string>
+    <string name="listening_title">Внимательно слушаю…</string>
+    <string name="analyzing_sub">Это займёт несколько секунд.</string>
+    <string name="step_photo_received">Фото получено</string>
+    <string name="step_scanning">Осматриваю пол, кровать и стол</string>
+    <string name="step_audio_received">Слова получены</string>
+    <string name="step_tone">Разбираю слова и тон</string>
+    <string name="step_writing">Пишу вердикт</string>
+    <string name="error_title">Ой! Инспектор споткнулся.</string>
+    <string name="error_no_key">В этой сборке нет ИИ. Положи qwen.json в проект и пересобери.</string>
+    <string name="error_generic">ИИ не ответил. Проверь интернет и попробуй ещё раз.</string>
+
+    <string name="rec_idle">Готов слушать</string>
+    <string name="rec_listening">Слушаю…</string>
+    <string name="rec_ready">Записал!</string>
+    <string name="rec_tap_start">Нажми, чтобы начать запись</string>
+    <string name="rec_tap_stop">Нажми, чтобы остановить</string>
+    <string name="rec_tip">Держи телефон поближе к ребёнку. До 30 секунд.</string>
+    <string name="rec_heard_nothing">Я не расслышал слов. Попробуй ещё раз поближе.</string>
+    <string name="start_recording">Начать запись</string>
+    <string name="stop_recording">Остановить запись</string>
+    <string name="mic_permission_title">Инспектору нужен микрофон</string>
+    <string name="mic_permission_body">Разреши доступ к микрофону, чтобы записать, что говорит ребёнок.</string>
+    <string name="speech_unavailable">На этом устройстве нет распознавания речи. Установи или включи приложение Google.</string>
+    <string name="what_i_heard">Что я услышал</string>
+    <string name="heard_no_words">Слов не разобрать, только звуки голоса</string>
+    <string name="quoted">«%1$s»</string>
+    <string name="rec_measuring">Слушаю запись…</string>
+
+    <string name="verdict">Вердикт</string>
+    <string name="inspector_says">Инспектор говорит</string>
+    <string name="why">Почему так</string>
+    <string name="your_photo">Твоё фото</string>
+    <string name="tidy">Порядок</string>
+    <string name="mess">Бардак</string>
+    <string name="mess_meter">Бардакометр</string>
+    <string name="whining">Нытьё</string>
+    <string name="begging">Клянчит</string>
+    <string name="champ">Молодец</string>
+    <string name="whine_meter">Нытьеметр</string>
+    <string name="beg_meter">Уровень клянченья</string>
+    <string name="check_again">Проверить ещё</string>
+    <string name="record_again">Записать ещё</string>
+</resources>

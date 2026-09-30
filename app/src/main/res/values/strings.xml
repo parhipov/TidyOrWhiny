@@ -1,0 +1,90 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Tidy or Whiny</string>
+
+    <!-- The slogan: a lead-in glued to a marked word, no space: that is the look -->
+    <string name="slogan_1_lead">Snap the</string>
+    <string name="slogan_1_mark">mess.</string>
+    <string name="slogan_2_lead">Record the</string>
+    <string name="slogan_2_mark">whine.</string>
+    <string name="slogan_3">AI decides.</string>
+    <string name="home_subtitle">Pick a check. The AI Inspector gives an honest verdict.</string>
+    <string name="wordmark_tidy">Tidy</string>
+    <string name="wordmark_or">or</string>
+    <string name="wordmark_whiny">Whiny</string>
+    <string name="mascot_hello">I’m the Inspector.\nWhat are we checking?</string>
+
+    <string name="mess_check">Mess check</string>
+    <string name="mess_check_desc">Snap the room. Tidy, or total chaos?</string>
+    <string name="chip_photo">PHOTO</string>
+    <string name="whine_check">Whine check</string>
+    <string name="whine_check_desc">Record what they say. Whining, begging, or a champ?</string>
+    <string name="chip_audio">AUDIO</string>
+
+    <string name="back">Back</string>
+    <string name="close">Close</string>
+    <string name="allow">Allow</string>
+    <string name="try_again">Try again</string>
+    <string name="send_to_ai">Send to AI</string>
+    <string name="home">Back to home</string>
+
+    <!-- camera -->
+    <string name="camera_hint">Fit the whole room in the frame</string>
+    <string name="take_photo">Take photo</string>
+    <string name="pick_gallery">Pick from gallery</string>
+    <string name="switch_camera">Switch camera</string>
+    <string name="flash">Flash</string>
+    <string name="camera_permission_title">The Inspector needs the camera</string>
+    <string name="camera_permission_body">Allow camera access to snap the room. You can also pick a photo from the gallery.</string>
+    <string name="camera_failed">The camera did not start. Try picking a photo from the gallery.</string>
+    <string name="preview_title">Looks good?</string>
+    <string name="preview_body">Send it to the AI Inspector for an honest verdict.</string>
+    <string name="retake">Retake</string>
+
+    <!-- analyzing -->
+    <string name="inspecting_title">Inspecting the mess…</string>
+    <string name="listening_title">Listening closely…</string>
+    <string name="analyzing_sub">This takes a few seconds.</string>
+    <string name="step_photo_received">Photo received</string>
+    <string name="step_scanning">Scanning the floor, bed and desk</string>
+    <string name="step_audio_received">Words received</string>
+    <string name="step_tone">Checking the words and tone</string>
+    <string name="step_writing">Writing the verdict</string>
+    <string name="error_title">Oops! The Inspector tripped.</string>
+    <string name="error_no_key">No AI in this build. Put qwen.json in the project and rebuild.</string>
+    <string name="error_generic">The AI did not answer. Check the internet and try again.</string>
+
+    <!-- recorder -->
+    <string name="rec_idle">Ready when you are</string>
+    <string name="rec_listening">Listening…</string>
+    <string name="rec_ready">Got it!</string>
+    <string name="rec_tap_start">Tap to start recording</string>
+    <string name="rec_tap_stop">Tap to stop</string>
+    <string name="rec_tip">Hold the phone close to the speaker. Up to 30 seconds.</string>
+    <string name="rec_heard_nothing">I did not catch any words. Try again a little closer.</string>
+    <string name="start_recording">Start recording</string>
+    <string name="stop_recording">Stop recording</string>
+    <string name="mic_permission_title">The Inspector needs the microphone</string>
+    <string name="mic_permission_body">Allow microphone access to record what they say.</string>
+    <string name="speech_unavailable">Speech recognition is not available on this device. Install or enable the Google app.</string>
+    <string name="what_i_heard">What I heard</string>
+    <string name="heard_no_words">No clear words, only voice sounds</string>
+    <string name="quoted">“%1$s”</string>
+    <string name="rec_measuring">Listening to the recording…</string>
+
+    <!-- verdicts -->
+    <string name="verdict">Verdict</string>
+    <string name="inspector_says">The Inspector says</string>
+    <string name="why">Why so</string>
+    <string name="your_photo">Your photo</string>
+    <string name="tidy">Tidy</string>
+    <string name="mess">Mess</string>
+    <string name="mess_meter">Mess-o-meter</string>
+    <string name="whining">Whining</string>
+    <string name="begging">Begging</string>
+    <string name="champ">Champ</string>
+    <string name="whine_meter">Whine-o-meter</string>
+    <string name="beg_meter">Begging level</string>
+    <string name="check_again">Check again</string>
+    <string name="record_again">Record again</string>
+</resources>

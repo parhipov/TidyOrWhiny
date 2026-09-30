@@ -1,0 +1,21 @@
+.gradle/
+.kotlin/
+build/
+/local.properties
+.idea/
+*.iml
+.DS_Store
+captures/
+.externalNativeBuild/
+.cxx/
+
+# the family build's Qwen: gateway, model, key (qwen.example.json is the shape)
+/qwen.json
+*.keystore
+!keystore/debug.keystore
+
+# tools: the Python env and the downloaded AudioSet clips (YouTube audio, for checking only)
+tools/.venv/
+tools/whine/data/
+__pycache__/
+*.log

@@ -1,0 +1,4 @@
+# gradlew must keep LF to run on Linux/macOS, the .bat CRLF for cmd
+* text=auto
+gradlew text eol=lf
+*.bat text eol=crlf
