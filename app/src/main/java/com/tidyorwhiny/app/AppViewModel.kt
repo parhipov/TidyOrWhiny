@@ -22,7 +22,8 @@ sealed interface Screen {
     data object Camera : Screen
     data class PhotoPreview(val photo: Bitmap) : Screen
     data object Recorder : Screen
-    data class Analyzing(val check: Check, val error: Failure? = null) : Screen
+    /** [slow]: the first ask got no answer and a second one is on its way. */
+    data class Analyzing(val check: Check, val error: Failure? = null, val slow: Boolean = false) : Screen
     data class MessResult(val photo: Bitmap, val verdict: MessVerdict) : Screen
     data class WhineResult(val transcript: String, val verdict: WhineVerdict) : Screen
 }
@@ -53,14 +54,14 @@ class AppViewModel : ViewModel() {
 
     fun sendPhoto() {
         val p = photo ?: return
-        ask(Check.Mess) { Screen.MessResult(p, inspector.judgeRoom(p)) }
+        ask(Check.Mess) { slow -> Screen.MessResult(p, inspector.judgeRoom(p, slow)) }
     }
 
     fun sendWords(text: String, sound: VoiceFeatures?, kept: java.io.File? = null) {
         transcript = text
         voice = sound
-        ask(Check.Whine) {
-            val v = inspector.judgeWords(text, sound)
+        ask(Check.Whine) { slow ->
+            val v = inspector.judgeWords(text, sound, slow)
             kept?.appendText("verdict: ${v.kind} ${v.level}/10, ${v.title}\nwhy: ${v.why.joinToString(" | ")}\ntip: ${v.tip}\n")
             Screen.WhineResult(text, v)
         }
@@ -74,12 +75,15 @@ class AppViewModel : ViewModel() {
         }
     }
 
-    private fun ask(check: Check, block: suspend () -> Screen) {
+    private fun ask(check: Check, block: suspend (onSlow: () -> Unit) -> Screen) {
         job?.cancel()
         screen = Screen.Analyzing(check)
+        val waiting = { (screen as? Screen.Analyzing)?.let { it.check == check && it.error == null } == true }
         job = viewModelScope.launch {
+            // a child of this ask: a cancelled ask can no longer mark a newer one slow
+            val onSlow: () -> Unit = { launch { if (waiting()) screen = Screen.Analyzing(check, slow = true) } }
             val next = try {
-                block()
+                block(onSlow)
             } catch (e: NoKeyException) {
                 Screen.Analyzing(check, Failure.NoKey)
             } catch (e: kotlinx.coroutines.CancellationException) {
@@ -88,7 +92,7 @@ class AppViewModel : ViewModel() {
                 Log.w("Inspector", "ask failed", e)
                 Screen.Analyzing(check, Failure.Other)
             }
-            if (screen == Screen.Analyzing(check)) screen = next
+            if (waiting()) screen = next
         }
     }
 

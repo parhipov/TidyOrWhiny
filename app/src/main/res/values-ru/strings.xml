@@ -37,6 +37,8 @@
     <string name="inspecting_title">Изучаю бардак…</string>
     <string name="listening_title">Внимательно слушаю…</string>
     <string name="analyzing_sub">Это займёт несколько секунд.</string>
+    <string name="slow_title">Инспектор что-то долго думает…</string>
+    <string name="slow_sub">Спрашиваю ещё раз. Не больше полминуты.</string>
     <string name="step_photo_received">Фото получено</string>
     <string name="step_scanning">Осматриваю пол, кровать и стол</string>
     <string name="step_audio_received">Слова получены</string>

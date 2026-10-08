@@ -19,8 +19,8 @@ class Inspector(private val qwen: QwenClient = QwenClient()) {
 
     val enabled get() = qwen.enabled
 
-    suspend fun judgeRoom(photo: Bitmap): MessVerdict {
-        val raw = qwen.chat(JSONArray().put(QwenClient.image(photo)).put(QwenClient.text(MESS_PROMPT.withContext())))
+    suspend fun judgeRoom(photo: Bitmap, onSlow: () -> Unit = {}): MessVerdict {
+        val raw = qwen.chat(JSONArray().put(QwenClient.image(photo)).put(QwenClient.text(MESS_PROMPT.withContext())), onSlow)
         val o = jsonIn(raw)
         val level = o.optInt("level", 5).coerceIn(0, 10)
         val verdict = o.optString("verdict").lowercase()
@@ -29,11 +29,11 @@ class Inspector(private val qwen: QwenClient = QwenClient()) {
     }
 
     /** The words and, when the phone could measure it, how the voice sounded. */
-    suspend fun judgeWords(transcript: String, voice: VoiceFeatures?): WhineVerdict {
+    suspend fun judgeWords(transcript: String, voice: VoiceFeatures?, onSlow: () -> Unit = {}): WhineVerdict {
         val ask = WHINE_PROMPT.withContext() +
             (if (voice != null) "How it sounded, measured on the phone:\n" + voice.forPrompt() + "\n\n" else "") +
             "Transcript:\n" + transcript.ifBlank { "(no clear words, only voice sounds)" }
-        val raw = qwen.chat(JSONArray().put(QwenClient.text(ask)))
+        val raw = qwen.chat(JSONArray().put(QwenClient.text(ask)), onSlow)
         val o = jsonIn(raw)
         val verdict = o.optString("verdict").lowercase()
         val kind = when {

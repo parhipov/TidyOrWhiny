@@ -15,8 +15,10 @@
         </intent>
     </queries>
 
+    <!-- usesCleartextTraffic: an Ollama box in qwen.json is plain http, it has no certificate -->
     <application
         android:allowBackup="true"
+        android:usesCleartextTraffic="true"
         android:icon="@mipmap/ic_launcher"
         android:roundIcon="@mipmap/ic_launcher"
         android:label="@string/app_name"

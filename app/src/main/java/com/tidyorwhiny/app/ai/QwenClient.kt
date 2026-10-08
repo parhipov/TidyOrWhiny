@@ -14,7 +14,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 
 /**
- * Qwen on the HAL gateway, as Photo3D's core/llm.py talks to it: an OpenAI-style
+ * Qwen on the HAL gateway or an Ollama box, as Photo3D's core/llm.py talks to it: an OpenAI-style
  * /chat/completions, one user turn, thinking off, retried on what the gateway fails quickly on.
  * The gateway, model and key come from qwen.json through BuildConfig; only the family build has them.
  */
@@ -25,11 +25,11 @@ class QwenClient(
 ) {
     val enabled get() = BuildConfig.FAMILY && apiKey.isNotBlank()
 
-    /** One user turn of content parts, the reply text. */
-    suspend fun chat(content: JSONArray): String = withContext(Dispatchers.IO) {
+    /** One user turn of content parts, the reply text; [onSlow] when the first attempt failed and a second one starts. */
+    suspend fun chat(content: JSONArray, onSlow: () -> Unit = {}): String = withContext(Dispatchers.IO) {
         if (!enabled) throw NoKeyException()
-        // chat_template_kwargs is the only enable_thinking the gateway obeys; thinking costs
-        // seconds and tokens for the same verdict.
+        // Thinking costs seconds and tokens for the same verdict. The vLLM gateway obeys only
+        // chat_template_kwargs; Ollama ignores that and obeys only reasoning_effort "none".
         val body = JSONObject()
             .put("model", model)
             .put("messages", JSONArray().put(JSONObject().put("role", "user").put("content", content)))
@@ -37,10 +37,15 @@ class QwenClient(
             .put("stream", false)
             .put("enable_thinking", false)
             .put("chat_template_kwargs", JSONObject().put("enable_thinking", false))
+            .put("reasoning_effort", "none")
             .toString()
             .toByteArray()
         var err = "no answer"
         for (k in 0 until ATTEMPTS) {
+            if (k > 0) {
+                onSlow()
+                delay(1500L)
+            }
             try {
                 val conn = (URL(baseUrl.trimEnd('/') + "/chat/completions").openConnection() as HttpURLConnection).apply {
                     requestMethod = "POST"
@@ -67,14 +72,13 @@ class QwenClient(
             } catch (e: IOException) {
                 err = e.message ?: e.javaClass.simpleName
             }
-            if (k < ATTEMPTS - 1) delay(1500L * (k + 1))
         }
         throw QwenException(err)
     }
 
     companion object {
-        const val ATTEMPTS = 3
-        const val TIMEOUT_MS = 180_000      // one ask; the gateway stalls sometimes, a retry usually answers
+        const val ATTEMPTS = 2              // the gateway stalls sometimes, a second ask usually answers
+        const val TIMEOUT_MS = 30_000       // one ask; a minute in all, nobody waits longer for a verdict
         val RETRY = setOf(429, 500, 502, 503, 504)
         const val SEND_SIDE = 1280          // long side of a photo sent; plenty to tell a mess from a tidy room
         const val JPEG_QUALITY = 85

@@ -38,8 +38,8 @@ android {
         applicationId = "com.tidyorwhiny.app"
         minSdk = 28
         targetSdk = 35
-        versionCode = 6
-        versionName = "1.05"
+        versionCode = 8
+        versionName = "1.07"
 
         buildConfigField("boolean", "FAMILY", qwen.isNotEmpty().toString())
         buildConfigField("String", "QWEN_BASE_URL", qwenField("base_url"))

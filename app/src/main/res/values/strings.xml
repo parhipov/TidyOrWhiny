@@ -45,6 +45,8 @@
     <string name="inspecting_title">Inspecting the mess…</string>
     <string name="listening_title">Listening closely…</string>
     <string name="analyzing_sub">This takes a few seconds.</string>
+    <string name="slow_title">The Inspector is taking a while…</string>
+    <string name="slow_sub">Asking once more. Half a minute at most.</string>
     <string name="step_photo_received">Photo received</string>
     <string name="step_scanning">Scanning the floor, bed and desk</string>
     <string name="step_audio_received">Words received</string>

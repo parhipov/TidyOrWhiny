@@ -74,7 +74,7 @@ private fun App(vm: AppViewModel) {
                 Screen.Camera -> CameraScreen(onBack = vm::home, onPhoto = vm::onPhoto)
                 is Screen.PhotoPreview -> PhotoPreviewScreen(s.photo, onBack = vm::retake, onRetake = vm::retake, onSend = vm::sendPhoto)
                 Screen.Recorder -> RecorderScreen(onBack = vm::home, onSend = vm::sendWords)
-                is Screen.Analyzing -> AnalyzingScreen(s.check, s.error, onCancel = vm::back, onRetry = vm::retry)
+                is Screen.Analyzing -> AnalyzingScreen(s.check, s.error, s.slow, onCancel = vm::back, onRetry = vm::retry)
                 is Screen.MessResult -> MessResultScreen(s.photo, s.verdict, onAgain = { vm.open(Check.Mess) }, onHome = vm::home)
                 is Screen.WhineResult -> WhineResultScreen(s.transcript, s.verdict, onAgain = { vm.open(Check.Whine) }, onHome = vm::home)
             }

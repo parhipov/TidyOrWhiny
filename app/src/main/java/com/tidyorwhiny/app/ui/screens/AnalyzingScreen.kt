@@ -63,7 +63,7 @@ import com.tidyorwhiny.app.ui.theme.VioletTint
 import kotlinx.coroutines.delay
 
 @Composable
-fun AnalyzingScreen(check: Check, error: Failure?, onCancel: () -> Unit, onRetry: () -> Unit) {
+fun AnalyzingScreen(check: Check, error: Failure?, slow: Boolean, onCancel: () -> Unit, onRetry: () -> Unit) {
     val mess = check == Check.Mess
     val accent = if (mess) Orange else Violet
     val tint = if (mess) OrangeTint else VioletTint
@@ -95,9 +95,13 @@ fun AnalyzingScreen(check: Check, error: Failure?, onCancel: () -> Unit, onRetry
             AnimatedContent(error, label = "state") { e ->
                 Column(horizontalAlignment = Alignment.CenterHorizontally) {
                     if (e == null) {
-                        CenteredText(stringResource(if (mess) R.string.inspecting_title else R.string.listening_title), TwType.title)
+                        CenteredText(stringResource(when {
+                            slow -> R.string.slow_title
+                            mess -> R.string.inspecting_title
+                            else -> R.string.listening_title
+                        }), TwType.title)
                         Spacer(Modifier.height(6.dp))
-                        CenteredText(stringResource(R.string.analyzing_sub), TwType.body)
+                        CenteredText(stringResource(if (slow) R.string.slow_sub else R.string.analyzing_sub), TwType.body)
                         Spacer(Modifier.height(24.dp))
                         Column(
                             Modifier.fillMaxWidth().sticker(RoundedCornerShape(24.dp), Paper, 5.dp).padding(18.dp),
