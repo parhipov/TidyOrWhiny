@@ -19,6 +19,9 @@ class Inspector(private val qwen: QwenClient = QwenClient()) {
 
     val enabled get() = qwen.enabled
 
+    /** Wakes the model up before the first verdict is asked for. */
+    suspend fun warmUp() = qwen.warmUp()
+
     suspend fun judgeRoom(photo: Bitmap, onSlow: () -> Unit = {}): MessVerdict {
         val raw = qwen.chat(JSONArray().put(QwenClient.image(photo)).put(QwenClient.text(MESS_PROMPT.withContext())), onSlow)
         val o = jsonIn(raw)

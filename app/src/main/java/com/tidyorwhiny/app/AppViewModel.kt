@@ -41,6 +41,10 @@ class AppViewModel : ViewModel() {
     private var voice: VoiceFeatures? = null
     private var job: Job? = null
 
+    init {
+        viewModelScope.launch { inspector.warmUp() }
+    }
+
     fun open(check: Check) {
         screen = if (check == Check.Mess) Screen.Camera else Screen.Recorder
     }
