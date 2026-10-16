@@ -3,7 +3,7 @@
 
 import { STRINGS } from "./strings.js";
 import { mascot, face, icon, confetti } from "./art.js";
-import { Recording, LEVELS, speechSupported } from "./voice.js";
+import { Recording, LEVELS } from "./voice.js";
 
 const SEND_SIDE = 1280;     // long side of a photo sent; plenty to tell a mess from a tidy room
 const JPEG_QUALITY = 0.85;
@@ -39,9 +39,10 @@ const S = {
   photo: null,            // {url, b64}
   photoError: false,
   rec: null,              // the Recording in progress
-  recState: "idle",       // idle | denied | listening | measuring | ready | empty
-  levels: [], elapsed: 0, partial: "",
-  heard: null,            // {transcript, voice, speech}
+  recState: "idle",       // idle | denied | listening | empty
+  levels: [], elapsed: 0,
+  audio: null,            // the last recording, base64 WAV: sent again on "try again"
+  heard: "",              // the words the server made out of it
   check: null,            // mess | whine, while analyzing
   error: null,            // null | generic | busy
   slow: false, step: 1,
@@ -163,19 +164,14 @@ function previewScreen() {
 
 function recorderScreen() {
   const st = S.recState, listening = st === "listening";
-  const chip = listening ? ["rec_listening", "coral", true] : st === "ready" ? ["rec_ready", "mint"] : ["rec_idle", "line"];
+  const chip = listening ? ["rec_listening", "coral", true] : ["rec_idle", "line"];
   let below = "";
   if (st === "denied") below = `<p class="note"><b>${T("mic_permission_title")}</b><br>${T("mic_permission_body")}</p>`;
-  else if (listening) below = S.partial ? heardBox(S.partial, true) : "";
-  else if (st === "measuring") below = `<p class="note">${T("rec_measuring")}</p>`;
   else if (st === "empty") below = `<p class="note">${T("rec_heard_nothing")}</p>`;
-  else if (st === "ready") below = heardBox(S.heard.transcript || t("heard_no_words"), true) +
-    (S.heard.speech ? "" : `<p class="note">${T("speech_unavailable")}</p>`);
-  else below = `<div class="tipbox">${mascot("phones")}<p>${T("rec_tip")}</p></div>` +
-    (speechSupported() ? "" : `<p class="note">${T("speech_unavailable")}</p>`);
+  else if (!listening) below = `<div class="tipbox">${mascot("phones")}<p>${T("rec_tip")}</p></div>`;
   const hint = st === "denied" ? "" : `<p class="hint">${T(listening ? "rec_tap_stop" : "rec_tap_start")}</p>`;
   return `<div class="screen">
-    ${topBar(t("whine_check"), "home", "back", t("back"), dots(st === "ready" ? 2 : 1, "violet"))}
+    ${topBar(t("whine_check"), "home", "back", t("back"), dots(listening ? 2 : 1, "violet"))}
     <main class="col center">
       <span class="chip"><i class="${chip[1]} ${chip[2] ? "blink" : ""}"></i>${T(chip[0])}</span>
       <div class="timer" id="timer">${clock(S.elapsed)}</div>
@@ -183,18 +179,14 @@ function recorderScreen() {
       <div class="mic-wrap ${listening ? "on" : ""}">
         <i class="ring r1"></i><i class="ring r2"></i>
         <button class="mic sticker" data-action="${st === "denied" ? "record" : listening ? "stop" : "record"}"
-          aria-label="${T(listening ? "stop_recording" : "start_recording")}" ${st === "measuring" ? "disabled" : ""}>
+          aria-label="${T(listening ? "stop_recording" : "start_recording")}">
           ${listening ? `<i class="stop"></i>` : icon("mic")}</button>
       </div>
       ${st === "denied" ? btn("record", t("allow"), "violet small", "mic") : hint}
-      <div class="below" id="below">${below}</div>
+      <div class="below">${below}</div>
     </main>
-    ${st === "ready" ? `<footer class="actions">${btn("send-words", t("send_to_ai"), "violet", "sparkle")}${btn("record", t("record_again"), "paper", "retry")}</footer>` : ""}
   </div>`;
 }
-
-const heardBox = (text, quote) =>
-  `<div class="box heard"><p class="small">${T("what_i_heard")}</p><p class="said">${esc(quote ? t("quoted", text) : text)}</p></div>`;
 
 const clock = ms => { const s = Math.floor(ms / 1000); return `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`; };
 
@@ -276,7 +268,7 @@ function messScreen() {
 function whineScreen() {
   const v = S.verdict;
   const [color, tint] = { whining: ["coral", "coral-tint"], begging: ["sun", "sun-tint"], champ: ["mint", "mint-tint"] }[v.verdict];
-  const said = S.heard.transcript;
+  const said = S.heard;
   return verdictFrame(tint, `
     <span class="face-big pop">${face(v.verdict)}</span>
     <h2 class="headline">${esc(v.title || t(v.verdict))}</h2>
@@ -340,22 +332,17 @@ async function shrink(file) {
 // ------------------------------------------------------------------ recording
 function startRecording() {
   dropRecording();
-  Object.assign(S, { recState: "listening", levels: [], elapsed: 0, partial: "", heard: null });
+  Object.assign(S, { recState: "listening", levels: [], elapsed: 0, audio: null, heard: "" });
   render();
-  S.rec = new Recording(lang, {
+  S.rec = new Recording({
     level: v => { S.levels.push(v); if (S.levels.length > LEVELS) S.levels.shift(); paintLive(); },
     tick: ms => { S.elapsed = ms; paintLive(); },
-    partial: text => {
-      S.partial = text;
-      const b = document.getElementById("below");
-      if (b && S.recState === "listening") b.innerHTML = heardBox(text, true);
-    },
-    measuring: () => { S.recState = "measuring"; render(); },
-    done: heard => {
+    // stopped by hand or at 30 s: straight to the Inspector, who hears the words on the server
+    done: wav => {
       S.rec = null;
-      S.heard = heard;
-      S.recState = !heard.transcript && heard.voice.voicedShare < 0.05 ? "empty" : "ready";
-      if (S.screen === "recorder") render();
+      S.audio = wav;
+      S.recState = "idle";
+      if (S.screen === "recorder") judge("whine");
     },
     fail: () => { S.rec = null; S.recState = "denied"; render(); },
   });
@@ -376,7 +363,7 @@ function paintLive() {
 
 function dropRecording() {
   if (S.rec) { S.rec.cancel(); S.rec = null; }
-  if (S.recState === "listening" || S.recState === "measuring") S.recState = "idle";
+  if (S.recState === "listening") S.recState = "idle";
 }
 
 // ------------------------------------------------------------------ the verdict
@@ -396,7 +383,7 @@ async function judge(check) {
   const now = new Date();
   const body = { lang, time: `${now.getHours()}:${String(now.getMinutes()).padStart(2, "0")}` };
   if (check === "mess") body.image = S.photo.b64;
-  else { body.transcript = S.heard.transcript; body.voice = S.heard.voice; }
+  else body.audio = S.audio;
   let next = null, error = "generic";
   try {
     const r = await fetch(`api/${check === "mess" ? "mess" : "whine"}`, {
@@ -404,11 +391,17 @@ async function judge(check) {
     });
     if (r.ok) next = await r.json();
     else if (r.status === 429) error = "busy";
+    else if (r.status === 422) error = "empty";
   } catch (_) { /* aborted or offline */ }
   clearTimeout(stepUp); clearTimeout(slow); clearTimeout(giveUp);
   if (ask !== ctl) return;             // cancelled, or a newer ask took over
   ask = null;
-  if (next && next.verdict) {
+  if (error === "empty") {             // no voice in it: back to the microphone, saying so
+    S.recState = "empty";
+    go("recorder", false);
+    history.replaceState({ screen: S.screen }, "");
+  } else if (next && next.verdict) {
+    if (check === "whine") S.heard = next.heard || "";
     S.verdict = next;
     go(check === "mess" ? "mess" : "whine", false);
     history.replaceState({ screen: S.screen }, "");
@@ -425,7 +418,7 @@ app.addEventListener("click", e => {
   if (!el || el.disabled) return;
   const a = el.dataset.action;
   if (a === "open") {
-    if (el.dataset.target === "recorder") Object.assign(S, { recState: "idle", heard: null, levels: [], elapsed: 0 });
+    if (el.dataset.target === "recorder") Object.assign(S, { recState: "idle", levels: [], elapsed: 0 });
     else S.photoError = false;
     go(el.dataset.target);
   }
@@ -434,11 +427,10 @@ app.addEventListener("click", e => {
   else if (a === "photo") { S.photoError = false; go("photo"); }
   else if (a === "send-photo") judge("mess");
   else if (a === "record") {
-    if (S.screen !== "recorder") { Object.assign(S, { recState: "idle", heard: null }); go("recorder"); }
+    if (S.screen !== "recorder") { S.recState = "idle"; go("recorder"); }
     startRecording();
   }
   else if (a === "stop") { if (S.rec) S.rec.stop(); }
-  else if (a === "send-words") judge("whine");
   else if (a === "retry") judge(S.check);
   else if (a === "cancel") history.back();
 });

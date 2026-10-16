@@ -73,19 +73,19 @@ If the file is there but a field is empty, the build stops with an error rather 
 
 ## In the browser
 
-The same two checks as a web page, at **https://tidy.rybinskai.ru**. [web/](web/) is the page, with no key in it; [server/server.py](server/server.py) serves it and asks the LLM for the verdicts. The server uses only the Python standard library.
+The same two checks as a web page, at **https://tidy.rybinskai.ru**. [web/](web/) is the page, with no key in it; [server/server.py](server/server.py) serves it, hears the recordings and asks the LLM for the verdicts.
 
-- The prompts are on the server, copied from [Inspector.kt](app/src/main/java/com/tidyorwhiny/app/ai/Inspector.kt). The page sends a photo, or the words and the voice numbers, never prompt text, so the server can't be used to ask the model anything else.
-- The voice is measured in the browser ([voice.js](web/voice.js), a line-for-line copy of `VoiceFeatures.kt`). Speech-to-text is the browser's own (Chrome, Safari). Firefox has none, so there the verdict goes by the sound only.
+- The prompts are on the server, copied from [Inspector.kt](app/src/main/java/com/tidyorwhiny/app/ai/Inspector.kt). The page sends a photo or a recording, never prompt text, so the server can't be used to ask the model anything else.
+- The recording (16 kHz WAV, up to 30 s) is heard on the server. Whisper `large-v3-turbo` ([faster-whisper](https://github.com/SYSTRAN/faster-whisper), on the GPU) writes down the words. [features.py](tools/whine/features.py) measures how the voice sounded. Browsers' own speech-to-text failed in Safari and then in Chrome, so the page doesn't use it. The server needs `numpy` and `faster-whisper`; the model, 1.6 GB, downloads on the first start.
 - The LLM comes from `server/llm.json` (git-ignored, shape in [server/llm.example.json](server/llm.example.json), the same file as AITable's): `"use": "cloud"` is Qwen on the HAL gateway, `"ollama"` a local model.
-- Open to all, 30 verdicts an hour per address and 1000 a day in all. Nothing is kept: the server logs one line per verdict, without the photo or the words.
+- Open to all, 30 verdicts an hour per address and 1000 a day in all. Nothing is kept: the server logs one line per verdict, without the photo, the recording or the words.
 
 ```sh
 python server/server.py            # http://127.0.0.1:8808/, TOW_PORT to change
-python server/server.py --check    # does the LLM answer?
+python server/server.py --check    # do Whisper and the LLM answer?
 ```
 
-On the home machine it runs from `d:\Work\Services\start-services.ps1` (entry `tidy`), and Caddy (`RybinskAICaddy\private\tidy.caddy`) puts it at `tidy.rybinskai.ru`. If you change the voice measures, change all three copies: Kotlin, `tools/whine/features.py` and `web/voice.js`.
+On the home machine it runs from `d:\Work\Services\start-services.ps1` (entry `tidy`), and Caddy (the `tidy.` block in RybinskAICaddy's Caddyfile) puts it at `tidy.rybinskai.ru`. If you change the voice measures, change both copies: Kotlin and `tools/whine/features.py`.
 
 ## Building
 

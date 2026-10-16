@@ -1,37 +1,47 @@
 """Tidy or Whiny in the browser: the page from web/ and the Inspector's two verdicts.
 
     python server/server.py                serve on 127.0.0.1:8808 (TOW_PORT to change)
-    python server/server.py --check        ask the LLM one tiny thing, print how it went, exit
+    python server/server.py --check        load Whisper, ask the LLM one tiny thing, print how it went, exit
 
 Caddy hands it https://tidy.rybinskai.ru. Listens on 127.0.0.1 only.
 
     POST /api/mess    {"image": "<base64 JPEG>", "lang": "ru"|"en", "time": "HH:MM"}
-    POST /api/whine   {"transcript": "...", "voice": {...} | null, "lang": ..., "time": ...}
+    POST /api/whine   {"audio": "<base64 WAV, 16 kHz mono 16-bit>", "lang": ..., "time": ...}
 
-Both answer {"verdict", "level", "title", "why": [...], "tip"}, or {"error": "busy"|"llm"|"bad"}
-with 429, 502 or 400. The prompts are the app's (app/.../ai/Inspector.kt) and live here, not in
-the page: the page sends a photo or words and numbers, never prompt text, so the server cannot be
-used to ask the model anything else.
+Both answer {"verdict", "level", "title", "why": [...], "tip"}, the whine check with "heard" too,
+or {"error": "busy"|"llm"|"bad"|"empty"} with 429, 502, 400 or 422 (a recording with no voice).
+The prompts are the app's (app/.../ai/Inspector.kt) and live here, not in the page: the page sends
+a photo or a recording, never prompt text, so the server cannot be used to ask the model anything
+else.
+
+The recording is heard here, not in the browser: Whisper (large-v3-turbo, faster-whisper, on this
+machine's GPU) writes down the words, and tools/whine/features.py -- VoiceFeatures.kt in Python --
+measures how the voice sounded. Browsers' own speech-to-text failed in Safari and then in Chrome.
 
 The LLM comes from llm.json beside this file (git-ignored; llm.example.json is the shape), the
 same file AITable reads: "use" picks "cloud" (the HAL gateway, OpenAI-style) or "ollama". The
-key stays in that file and on this machine. Nothing is kept: no photo, no words -- one log line
-per verdict, without them.
+key stays in that file and on this machine. Nothing is kept: no photo, no recording, no words --
+one log line per verdict, without them.
 """
-import argparse, base64, binascii, collections, datetime as dt, json, mimetypes, os, re, sys, threading, time
+import argparse, base64, binascii, collections, datetime as dt, io, json, mimetypes, os, re, sys, threading, time, wave
 import urllib.error, urllib.request
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
+
+import numpy as np
 
 HERE = os.path.dirname(os.path.abspath(__file__))
 WEB = os.path.normpath(os.path.join(HERE, "..", "web"))
 LLM_JSON = os.path.join(HERE, "llm.json")
 PORT = int(os.environ.get("TOW_PORT", "8808"))
 
+sys.path.insert(0, os.path.normpath(os.path.join(HERE, "..", "tools", "whine")))
+import features   # noqa: E402  -- VoiceFeatures.kt in Python
+
 PER_IP_HOUR = 30         # verdicts one address may ask for in an hour
 PER_DAY = 1000           # and everybody together in a day
-MAX_BODY = 6 * 1024 * 1024   # a 1280 px JPEG is a few hundred KB; base64 adds a third
-MAX_TRANSCRIPT = 2000
-ATTEMPTS = 2             # the gateway stalls sometimes, a second ask usually answers
+MAX_BODY = 6 * 1024 * 1024   # a 1280 px JPEG is a few hundred KB, 30 s of 16 kHz WAV 1 MB; base64 adds a third
+MAX_SECONDS = 35         # of recording heard; the page stops at 30
+ATTEMPTS = 2            # the gateway stalls sometimes, a second ask usually answers
 TIMEOUT = 30             # one ask; a minute in all, nobody waits longer for a verdict
 MAX_TOKENS = 700         # a verdict is 100-200 tokens; this only stops a loop
 RETRY = {429, 500, 502, 503, 504}
@@ -113,28 +123,68 @@ def with_context(prompt, ask):
     return prompt.replace("LANG", LANGS.get(ask.get("lang"), "English")).replace("TIME", time_of_day(ask.get("time")))
 
 
-def num(v, lo, hi):
-    """A measure from the page, or None when it is not a sane number."""
-    try:
-        f = float(v)
-    except (TypeError, ValueError):
-        return None
-    return f if lo <= f <= hi else None
-
-
 def voice_for_prompt(v):
-    """VoiceFeatures.forPrompt(), from the numbers the page measured: only those, never its text."""
-    if not isinstance(v, dict):
-        return None
-    seconds, voiced = num(v.get("seconds"), 0, 120), num(v.get("voicedShare"), 0, 1)
-    pitch = num(v.get("pitchMedianHz"), 0, 2000)
-    longest, share = num(v.get("longestVowelS"), 0, 120), num(v.get("longVowelShare"), 0, 1)
-    if None in (seconds, voiced, pitch, longest, share):
-        return None
-    lines = [f"recording length: {seconds:.1f} s", f"voice in {voiced * 100:.0f}% of the time"]
-    lines.append(f"longest drawn-out vowel: {longest:.2f} s; {share * 100:.0f}% of the voiced time is in vowels held over 0.5 s"
-                 if pitch > 0 else "no clear voice found")
+    """VoiceFeatures.forPrompt(), from features.measure()."""
+    lines = [f"recording length: {v['seconds']:.1f} s", f"voice in {v['voiced_share'] * 100:.0f}% of the time"]
+    lines.append(f"longest drawn-out vowel: {v['longest_vowel_s']:.2f} s; {v['long_vowel_share'] * 100:.0f}% "
+                 "of the voiced time is in vowels held over 0.5 s" if v.get("pitch_median_hz", 0) > 0 else "no clear voice found")
     return "\n".join(lines)
+
+
+# ------------------------------------------------------------------ the words (Whisper on this machine's GPU)
+WHISPER_MODEL = os.environ.get("TOW_WHISPER", "large-v3-turbo")
+# What Whisper says over silence and noise, learnt from film subtitles: never a child's words.
+GHOSTS = re.compile(r"субтитр|продолжение следует|спасибо за просмотр|подписывайтесь|редактор|корректор|dimatorzok|"
+                    r"amara\.org|subtitles? by|thanks? (you )?for watching|please subscribe", re.I)
+_whisper = None
+WHISPER_LOCK = threading.Lock()   # one recording at a time on the GPU
+
+
+def _load_whisper():
+    """large-v3-turbo on the GPU, int8 (1.5 GB), or on the CPU when CUDA will not have it."""
+    global _whisper
+    if _whisper is None:
+        from faster_whisper import WhisperModel
+        t = time.time()
+        try:
+            _whisper = WhisperModel(WHISPER_MODEL, device="cuda", compute_type="int8_float16")
+            where = "cuda"
+        except Exception as e:   # no CUDA, no room on the GPU: slower, but it still hears
+            say(f"whisper: cuda failed ({e}), on the cpu")
+            _whisper = WhisperModel(WHISPER_MODEL, device="cpu", compute_type="int8")
+            where = "cpu"
+        say(f"whisper: {WHISPER_MODEL} on the {where} ({time.time() - t:.1f} s)")
+    return _whisper
+
+
+def hear(pcm, lang):
+    """The words in a recording, or "" when there were none. The language is the page's: on a few
+    words of a child Whisper's own guess goes wrong. The VAD and the no-speech cut keep it from
+    writing film subtitles over silence; GHOSTS catches what gets through."""
+    x = pcm.astype(np.float32) / 32768.0
+    try:
+        with WHISPER_LOCK:
+            segs, _ = _load_whisper().transcribe(
+                x, language=lang if lang in LANGS else "en", beam_size=5, vad_filter=True,
+                condition_on_previous_text=False, no_speech_threshold=0.6)
+            words = [s.text.strip() for s in segs if s.no_speech_prob < 0.6 and not GHOSTS.search(s.text)]
+    except Exception as e:
+        raise LLMError(f"whisper: {e}")
+    return " ".join(w for w in words if w)
+
+
+def read_audio(b64):
+    """The page's recording, base64 WAV at 16 kHz mono 16-bit, as int16 samples; None if it is not that."""
+    if not isinstance(b64, str) or not b64:
+        return None
+    try:
+        with wave.open(io.BytesIO(base64.b64decode(b64.split(",", 1)[-1], validate=True))) as w:
+            if w.getframerate() != features.RATE or w.getnchannels() != 1 or w.getsampwidth() != 2:
+                return None
+            pcm = np.frombuffer(w.readframes(min(w.getnframes(), features.RATE * MAX_SECONDS)), dtype=np.int16)
+    except (binascii.Error, ValueError, wave.Error, EOFError):
+        return None
+    return pcm if len(pcm) >= features.RATE // 4 else None
 
 
 # ------------------------------------------------------------------ the LLM (AITable's detect/llm.py, cut down)
@@ -252,16 +302,26 @@ def judge_room(ask):
 
 
 def judge_words(ask):
-    voice = voice_for_prompt(ask.get("voice"))
-    transcript = str(ask.get("transcript") or "").strip()[:MAX_TRANSCRIPT]
+    """None when there was nothing to judge: no words and next to no voice, as SpeechCapture's Empty."""
+    pcm, times = ask["pcm"], ask["times"]
+    t = time.time()
+    # the voice is measured on the CPU while Whisper has the GPU
+    measured = {}
+    m = threading.Thread(target=lambda: measured.update(features.measure(pcm)))
+    m.start()
+    transcript = hear(pcm, ask.get("lang"))
+    m.join()
+    times["heard"] = time.time() - t
+    if not transcript and measured["voiced_share"] < 0.05:
+        return None
     text = (with_context(WHINE_PROMPT, ask)
-            + (f"How it sounded, measured on the phone:\n{voice}\n\n" if voice else "")
+            + f"How it sounded, measured on the phone:\n{voice_for_prompt(measured)}\n\n"
             + "Transcript:\n" + (transcript or "(no clear words, only voice sounds)"))
     o = json_in(chat(text))
     verdict = text_of(o, "verdict").lower()
     kind = "begging" if "beg" in verdict else "whining" if "whin" in verdict else "champ"
     return {"verdict": kind, "level": level_of(o), "title": text_of(o, "title"),
-            "why": why_of(o), "tip": text_of(o, "tip")}
+            "why": why_of(o), "tip": text_of(o, "tip"), "heard": transcript}
 
 
 def check_image(b64):
@@ -366,22 +426,38 @@ class Handler(BaseHTTPRequestHandler):
             ask["image"] = check_image(ask.get("image"))
             if not ask["image"]:
                 return self.send(400, {"error": "bad"})
+        else:
+            ask["pcm"] = read_audio(ask.pop("audio", None))
+            if ask["pcm"] is None:
+                return self.send(400, {"error": "bad"})
         ip = self.ip()
         if not LIMITS.allow(ip):
             say(f"{ip:<15} {path[5:]:<5} busy")
             return self.send(429, {"error": "busy"})
         t = time.time()
+        ask["times"] = {}
         try:
             v = judge_room(ask) if path == "/api/mess" else judge_words(ask)
         except LLMError as e:
             say(f"{ip:<15} {path[5:]:<5} failed in {time.time() - t:.1f} s: {e}")
             return self.send(502, {"error": "llm"})
-        say(f"{ip:<15} {path[5:]:<5} {v['verdict']} {v['level']}/10 in {time.time() - t:.1f} s, {ask.get('lang')}")
+        heard = f" (heard in {ask['times']['heard']:.1f} s)" if "heard" in ask["times"] else ""
+        if v is None:
+            say(f"{ip:<15} {path[5:]:<5} empty in {time.time() - t:.1f} s")
+            return self.send(422, {"error": "empty"})
+        say(f"{ip:<15} {path[5:]:<5} {v['verdict']} {v['level']}/10 in {time.time() - t:.1f} s{heard}, {ask.get('lang')}")
         self.send(200, v)
 
 
 def warm_up():
-    """An Ollama box loads the model on the first ask; better now than while a child waits."""
+    """Whisper onto the GPU, and an Ollama box loads its model on the first ask: better now than
+    while a child waits."""
+    try:
+        t = time.time()
+        hear(np.zeros(features.RATE, dtype=np.int16), "ru")
+        say(f"whisper: hears ({time.time() - t:.1f} s)")
+    except LLMError as e:
+        say(f"whisper: not ready: {e}")
     try:
         kind, c = llm_config()
         t = time.time()
@@ -393,7 +469,7 @@ def warm_up():
 
 def main():
     ap = argparse.ArgumentParser(description=__doc__.split("\n")[0])
-    ap.add_argument("--check", action="store_true", help="ask the LLM one tiny thing and exit")
+    ap.add_argument("--check", action="store_true", help="load Whisper, ask the LLM one tiny thing, and exit")
     a = ap.parse_args()
     if a.check:
         warm_up()
