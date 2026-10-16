@@ -36,7 +36,6 @@ TIMEOUT = 30             # one ask; a minute in all, nobody waits longer for a v
 MAX_TOKENS = 700         # a verdict is 100-200 tokens; this only stops a loop
 RETRY = {429, 500, 502, 503, 504}
 
-mimetypes.add_type("application/manifest+json", ".webmanifest")
 mimetypes.add_type("font/ttf", ".ttf")
 mimetypes.add_type("text/javascript", ".js")
 
