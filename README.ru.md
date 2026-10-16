@@ -71,6 +71,22 @@ Android-приложение для семьи. Сфотографируйте �
 
 > Ключ из семейного APK можно вытащить. Не отдавайте этот APK за пределы семьи.
 
+## В браузере
+
+Те же две проверки в виде веб-страницы: **https://tidy.rybinskai.ru**. Сама страница лежит в [web/](web/), ключа в ней нет. Её раздаёт [server/server.py](server/server.py), он же спрашивает у LLM вердикты. Сервер обходится стандартной библиотекой Python.
+
+- Промпты лежат на сервере, это копия [Inspector.kt](app/src/main/java/com/tidyorwhiny/app/ai/Inspector.kt). Страница шлёт только фото или слова с цифрами голоса, текста промпта в запросе нет, так что спросить модель о чём-то постороннем через сервер нельзя.
+- Голос меряется в браузере ([voice.js](web/voice.js), построчная копия `VoiceFeatures.kt`). Речь в текст переводит сам браузер (Chrome, Safari). В Firefox этого нет, там вердикт выносится только по звуку.
+- LLM задаётся в `server/llm.json` (в git его нет, формат в [server/llm.example.json](server/llm.example.json), тот же файл, что у AITable): `"use": "cloud"` означает Qwen на HAL-шлюзе, `"ollama"` локальную модель.
+- Доступ открыт всем: 30 вердиктов в час с одного адреса и 1000 в сутки на всех. Ничего не хранится: сервер пишет по строке на вердикт, без фото и слов.
+
+```sh
+python server/server.py            # http://127.0.0.1:8808/, порт меняется через TOW_PORT
+python server/server.py --check    # отвечает ли LLM?
+```
+
+На домашней машине сервер запускается из `d:\Work\Services\start-services.ps1` (запись `tidy`), а Caddy (`RybinskAICaddy\private\tidy.caddy`) выводит его на `tidy.rybinskai.ru`. Если меняешь измерения голоса, меняй все три копии: Kotlin, `tools/whine/features.py` и `web/voice.js`.
+
 ## Сборка
 
 Нужны JDK 17 и Android SDK (`ANDROID_HOME` или стандартная папка Android Studio).
@@ -107,4 +123,6 @@ app/src/main/java/com/tidyorwhiny/app/
   speech/    SpeechCapture (микрофон + распознавание), VoiceFeatures (как звучал голос)
   ui/        экраны, компоненты, тема
 tools/whine/ проверка измерений голоса на Python
+server/      сервер веб-версии: страница и вердикты
+web/         страница веб-версии
 ```

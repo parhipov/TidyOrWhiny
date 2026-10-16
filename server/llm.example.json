@@ -1,0 +1,12 @@
+{
+  "use": "cloud",
+  "cloud": {
+    "base_url": "https://.../v1",
+    "model": "qwen3.8-27b",
+    "api_key": ""
+  },
+  "ollama": {
+    "base_url": "http://localhost:11434",
+    "model": "qwen3.5:9b"
+  }
+}

@@ -11,6 +11,8 @@ captures/
 
 # the family build's Qwen: gateway, model, key (qwen.example.json is the shape)
 /qwen.json
+# the web build's LLM, same shape as AITable's llm.json (server/llm.example.json)
+/server/llm.json
 *.keystore
 !keystore/debug.keystore
 
