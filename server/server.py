@@ -50,6 +50,11 @@ mimetypes.add_type("font/ttf", ".ttf")
 mimetypes.add_type("text/javascript", ".js")
 
 
+# Run hidden, stdout is a log file in the ANSI code page, and a Russian Windows error ("connection
+# refused" at boot, before ollama is up) killed the thread that tried to print it.
+sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+
+
 def say(*a):
     print(dt.datetime.now().strftime("%Y-%m-%d %H:%M:%S"), *a, flush=True)
 
